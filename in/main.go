@@ -5,6 +5,12 @@ import (
 	"os"
 	"bufio"
 	"encoding/json"
+	"github.com/mmcdole/gofeed"
+	"crypto/sha1"
+	"encoding/hex"
+	"net/url"
+	"path/filepath"
+	"io/ioutil"
 )
 
 type Datum struct {
@@ -22,7 +28,7 @@ type Output struct {
 }
 
 type Source struct {
-	Secret   string    `json:"secret,omitempty"`
+	Url string `json:"url,omitempty"`
 }
 
 type Payload struct {
@@ -31,6 +37,7 @@ type Payload struct {
 }
 
 func main() {
+	args := os.Args
 	stat, err := os.Stdin.Stat()
 	if err != nil {
 		panic(err)
@@ -48,10 +55,47 @@ func main() {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
+		panic(err)
 	}
 
-	output, err := json.Marshal(Output{})
+	fp := gofeed.NewParser()
+	feed, err := fp.ParseURL(payload.Source.Url)
+	if err != nil {
+		panic(err)
+	}
+
+	output, err := json.Marshal(feed)
+	if err != nil {
+		panic(err)
+	}
+
+	algo := sha1.New()
+	_, err = algo.Write(output)
+	if err != nil {
+		panic(err)
+	}
+
+	hash := hex.EncodeToString(algo.Sum(nil))
+	if payload.Version.Ref != hash {
+		fmt.Fprintf(os.Stderr, "invalid hash: %v", hash)
+		os.Exit(1)
+	}
+
+	u, err := url.Parse(payload.Source.Url)
+	if err != nil {
+		panic(err)
+	}
+
+	file := filepath.Join(args[1], filepath.Base(u.Path))
+	err = ioutil.WriteFile(file, output, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	output, err = json.Marshal(Output{
+		Version{hash},
+		[]Datum{}},
+)
 	if err != nil {
 		panic(err)
 	}

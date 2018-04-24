@@ -6,8 +6,8 @@ import (
 	"os"
 	"bufio"
 	"crypto/sha1"
-	"encoding/hex"
 	"github.com/mmcdole/gofeed"
+	"encoding/hex"
 )
 
 type Version struct {
@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
+		panic(err)
 	}
 
 	fp := gofeed.NewParser()
@@ -53,8 +53,13 @@ func main() {
 	}
 
 	algo := sha1.New()
-	algo.Write(output)
-	output, err = json.Marshal([]Version{{hex.EncodeToString(algo.Sum(nil))}})
+	_, err = algo.Write(output)
+	if err != nil {
+		panic(err)
+	}
+
+	hash := hex.EncodeToString(algo.Sum(nil))
+	output, err = json.Marshal([]Version{{hash}})
 	if err != nil {
 		panic(err)
 	}
