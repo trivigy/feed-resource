@@ -15,7 +15,8 @@ type Version struct {
 }
 
 type Source struct {
-	Url string `json:"url,omitempty"`
+	Url      string `json:"url,omitempty"`
+	Insecure bool   `json:"insecure,omitempty"`
 }
 
 type Payload struct {

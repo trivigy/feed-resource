@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"path/filepath"
 	"io/ioutil"
+	"net/http"
+	"crypto/tls"
 )
 
 type Datum struct {
@@ -28,7 +30,8 @@ type Output struct {
 }
 
 type Source struct {
-	Url string `json:"url,omitempty"`
+	Url      string `json:"url,omitempty"`
+	Insecure bool   `json:"insecure,omitempty"`
 }
 
 type Payload struct {
@@ -57,6 +60,9 @@ func main() {
 	if err := scanner.Err(); err != nil {
 		panic(err)
 	}
+
+	http.DefaultTransport.(*http.Transport).TLSClientConfig =
+		&tls.Config{InsecureSkipVerify: payload.Source.Insecure}
 
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURL(payload.Source.Url)
@@ -95,7 +101,7 @@ func main() {
 	output, err = json.Marshal(Output{
 		Version{hash},
 		[]Datum{}},
-)
+	)
 	if err != nil {
 		panic(err)
 	}
